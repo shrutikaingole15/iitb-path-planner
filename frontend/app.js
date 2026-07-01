@@ -1,8 +1,9 @@
 // When the backend is served by the same process as this page (e.g. running
-// locally via `uvicorn main:app`), "" (same origin) works. Once the frontend
-// is deployed separately (e.g. GitHub Pages) from the backend (e.g. Render),
-// this must point at the backend's public URL instead.
-const API_BASE = "";
+// locally via `uvicorn main:app`), same-origin ("") works. When deployed to
+// GitHub Pages, the frontend is on a different origin than the backend, so
+// point it at the Render deployment instead.
+const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
+const API_BASE = isLocal ? "" : "https://iitb-path-planner.onrender.com";
 const CAMPUS_CENTER = [19.133, 72.915];
 
 const map = L.map("map", { zoomControl: true }).setView(CAMPUS_CENTER, 16);
