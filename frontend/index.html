@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>IIT Bombay UAV Path Planner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <h1>IITB Path Planner</h1>
+
+    <div class="field">
+      <label>Algorithm</label>
+      <div class="toggle">
+        <button id="btn-astar" class="algo-btn active" data-algo="astar">A*</button>
+        <button id="btn-rrtstar" class="algo-btn" data-algo="rrtstar">RRT*</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>View</label>
+      <div class="toggle">
+        <button id="btn-view2d" class="algo-btn active" data-view="2d">2D Map</button>
+        <button id="btn-view3d" class="algo-btn" data-view="3d">3D Buildings</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Start</label>
+      <select id="start-building">
+        <option value="">Click map or pick building…</option>
+      </select>
+      <div id="start-coords" class="coords"></div>
+    </div>
+
+    <div class="field">
+      <label>Destination</label>
+      <select id="goal-building">
+        <option value="">Click map or pick building…</option>
+      </select>
+      <div id="goal-coords" class="coords"></div>
+    </div>
+
+    <div class="field hint">
+      Click the map to set the <b>start</b> point (green), click again for the
+      <b>destination</b> (red). Or use the dropdowns above.
+    </div>
+
+    <button id="btn-plan" disabled>Plan Route</button>
+    <button id="btn-clear">Clear</button>
+
+    <div id="status"></div>
+
+    <div id="result" class="hidden">
+      <div><b>Length:</b> <span id="res-length"></span> m</div>
+      <div><b>Planned in:</b> <span id="res-time"></span> s</div>
+      <button id="btn-animate">Animate UAV Flight</button>
+    </div>
+  </div>
+  <div id="map"></div>
+  <div id="map3d" class="hidden"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
