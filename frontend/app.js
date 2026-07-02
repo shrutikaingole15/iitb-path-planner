@@ -26,6 +26,7 @@ let startMarker = null;
 let goalMarker = null;
 let lastPlanResult = null;
 let uavMarker = null;
+let uavMarker3d = null;
 let animTimer = null;
 
 const startSelect = document.getElementById("start-building");
@@ -108,6 +109,15 @@ function ensureMap3d() {
       layout: { "line-cap": "round", "line-join": "round" },
     });
 
+    map3d.addSource("uavtrail3d", { type: "geojson", data: emptyLineFeature() });
+    map3d.addLayer({
+      id: "uav-trail-3d",
+      type: "line",
+      source: "uavtrail3d",
+      paint: { "line-color": "#ffe082", "line-width": 3 },
+      layout: { "line-cap": "round", "line-join": "round" },
+    });
+
     map3dLoaded = true;
     syncRouteTo3d();
   };
@@ -151,7 +161,18 @@ document.querySelectorAll("[data-view]").forEach((btn) => {
       map2dEl.classList.add("hidden");
       map3dEl.classList.remove("hidden");
       ensureMap3d();
-      setTimeout(() => map3d.resize(), 0);
+      // Switching the container from display:none to visible leaves the
+      // MapLibre canvas blank (fill-extrusion layer in particular) until
+      // something nudges it with resize()+triggerRepaint(). Exactly when
+      // that "something" needs to happen isn't consistent (rAF timing
+      // alone isn't enough), so retry a few times over the following
+      // second rather than chase the exact right moment.
+      [0, 100, 300, 600, 1000].forEach((ms) =>
+        setTimeout(() => {
+          map3d.resize();
+          map3d.triggerRepaint();
+        }, ms)
+      );
     } else {
       map3dEl.classList.add("hidden");
       map2dEl.classList.remove("hidden");
@@ -334,11 +355,20 @@ function stopAnimation() {
     map.removeLayer(uavMarker);
     uavMarker = null;
   }
+  if (uavMarker3d) {
+    uavMarker3d.remove();
+    uavMarker3d = null;
+  }
+  if (map3d && map3dLoaded) {
+    const src = map3d.getSource("uavtrail3d");
+    if (src) src.setData(emptyLineFeature());
+  }
 }
 
 animateBtn.addEventListener("click", () => {
   if (!lastPlanResult) return;
   stopAnimation();
+  ensureMap3d(); // so the 3D view has something to show if the user switches to it mid-flight
 
   const pts = lastPlanResult.path_smooth;
   const trail = L.polyline([], { color: "#ffe082", weight: 3 }).addTo(routeLayer);
@@ -350,6 +380,14 @@ animateBtn.addEventListener("click", () => {
     iconAnchor: [8, 8],
   });
   uavMarker = L.marker(pts[0], { icon: uavIcon }).addTo(map);
+
+  const uavEl3d = document.createElement("div");
+  uavEl3d.style.cssText =
+    "width:16px;height:16px;border-radius:50%;background:#ff3b30;border:2px solid white;box-shadow:0 0 4px rgba(255,80,80,0.9);";
+  uavMarker3d = new maplibregl.Marker({ element: uavEl3d, anchor: "center" })
+    .setLngLat([pts[0][1], pts[0][0]])
+    .addTo(map3d);
+  const trail3dCoords = [[pts[0][1], pts[0][0]]];
 
   let i = 0;
   const totalMs = 8000; // full flight animated over 8s regardless of route length
@@ -363,6 +401,20 @@ animateBtn.addEventListener("click", () => {
     }
     uavMarker.setLatLng(pts[i]);
     trail.addLatLng(pts[i]);
+
+    const lngLat = [pts[i][1], pts[i][0]];
+    uavMarker3d.setLngLat(lngLat);
+    trail3dCoords.push(lngLat);
+    if (map3dLoaded) {
+      const src = map3d.getSource("uavtrail3d");
+      if (src) {
+        src.setData({
+          type: "Feature",
+          geometry: { type: "LineString", coordinates: trail3dCoords },
+          properties: {},
+        });
+      }
+    }
     i++;
   }, stepMs);
 });

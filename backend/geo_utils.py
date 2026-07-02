@@ -67,10 +67,31 @@ def _dilate_square(grid, r):
     return result
 
 
+def _point_in_polygon(xs, ys, poly_xs, poly_ys):
+    """Vectorized PNPOLY (crossing-number) test: xs/ys are 2D arrays of
+    pixel-center coordinates, poly_xs/poly_ys are the polygon vertices.
+    Returns a boolean array the same shape as xs/ys.
+    """
+    n = len(poly_xs)
+    inside = np.zeros(xs.shape, dtype=bool)
+    j = n - 1
+    for i in range(n):
+        xi, yi = poly_xs[i], poly_ys[i]
+        xj, yj = poly_xs[j], poly_ys[j]
+        if yi == yj:
+            j = i
+            continue
+        crosses = (yi > ys) != (yj > ys)
+        x_at_y = (xj - xi) * (ys - yi) / (yj - yi) + xi
+        inside ^= crosses & (xs < x_at_y)
+        j = i
+    return inside
+
+
 class CampusData:
     """Loads the GeoJSON once and exposes buildings + an occupancy grid."""
 
-    def __init__(self, map_size=3000, resolution=1, inflate_radius=5):
+    def __init__(self, map_size=3000, resolution=1, inflate_radius=2):
         self.map_size = map_size
         self.resolution = resolution
         self.inflate_radius = inflate_radius
@@ -130,8 +151,16 @@ class CampusData:
             ymax = min(int(math.ceil(max(ys))), n - 1)
             if xmin > xmax or ymin > ymax:
                 continue
-            # Bounding-box fill (matches the MATLAB script's approach).
-            grid[ymin : ymax + 1, xmin : xmax + 1] = True
+            # Rasterize the actual polygon (restricted to its bounding box
+            # for speed) instead of filling the whole bbox. A bbox fill
+            # blocks off real empty space around non-rectangular/rotated
+            # buildings, which was forcing the planner around gaps that
+            # are actually open.
+            px, py = np.meshgrid(
+                np.arange(xmin, xmax + 1) + 0.5, np.arange(ymin, ymax + 1) + 0.5
+            )
+            mask = _point_in_polygon(px, py, xs, ys)
+            grid[ymin : ymax + 1, xmin : xmax + 1] |= mask
 
         if self.inflate_radius > 0:
             grid = _dilate_square(grid, self.inflate_radius)
